@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/sam/Code/rvemu/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
