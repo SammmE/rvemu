@@ -46,6 +46,7 @@ void Cpu::decode_execute(uint32_t inst) {
 
   switch (opcode) {
   case 0x33:
+
     break;
   }
 }
