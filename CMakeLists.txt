@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_compile_options(-Wall -Wextra -Werror)
 
-add_executable(riscv_emu 
+add_executable(rvemu
     src/main.cpp 
     src/cpu.cpp
 )

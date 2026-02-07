@@ -1,1 +1,0 @@
-/usr/bin/clang++ CMakeFiles/riscv_emu.dir/src/main.cpp.o CMakeFiles/riscv_emu.dir/src/cpu.cpp.o -o riscv_emu

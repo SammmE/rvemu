@@ -117,24 +117,24 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named riscv_emu
+# Target rules for targets named rvemu
 
 # Build rule for target.
-riscv_emu: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 riscv_emu
-.PHONY : riscv_emu
+rvemu: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 rvemu
+.PHONY : rvemu
 
 # fast build rule for target.
-riscv_emu/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/riscv_emu.dir/build.make CMakeFiles/riscv_emu.dir/build
-.PHONY : riscv_emu/fast
+rvemu/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rvemu.dir/build.make CMakeFiles/rvemu.dir/build
+.PHONY : rvemu/fast
 
 src/cpu.o: src/cpu.cpp.o
 .PHONY : src/cpu.o
 
 # target to build an object file
 src/cpu.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/riscv_emu.dir/build.make CMakeFiles/riscv_emu.dir/src/cpu.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rvemu.dir/build.make CMakeFiles/rvemu.dir/src/cpu.cpp.o
 .PHONY : src/cpu.cpp.o
 
 src/cpu.i: src/cpu.cpp.i
@@ -142,7 +142,7 @@ src/cpu.i: src/cpu.cpp.i
 
 # target to preprocess a source file
 src/cpu.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/riscv_emu.dir/build.make CMakeFiles/riscv_emu.dir/src/cpu.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rvemu.dir/build.make CMakeFiles/rvemu.dir/src/cpu.cpp.i
 .PHONY : src/cpu.cpp.i
 
 src/cpu.s: src/cpu.cpp.s
@@ -150,7 +150,7 @@ src/cpu.s: src/cpu.cpp.s
 
 # target to generate assembly for a file
 src/cpu.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/riscv_emu.dir/build.make CMakeFiles/riscv_emu.dir/src/cpu.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rvemu.dir/build.make CMakeFiles/rvemu.dir/src/cpu.cpp.s
 .PHONY : src/cpu.cpp.s
 
 src/main.o: src/main.cpp.o
@@ -158,7 +158,7 @@ src/main.o: src/main.cpp.o
 
 # target to build an object file
 src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/riscv_emu.dir/build.make CMakeFiles/riscv_emu.dir/src/main.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rvemu.dir/build.make CMakeFiles/rvemu.dir/src/main.cpp.o
 .PHONY : src/main.cpp.o
 
 src/main.i: src/main.cpp.i
@@ -166,7 +166,7 @@ src/main.i: src/main.cpp.i
 
 # target to preprocess a source file
 src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/riscv_emu.dir/build.make CMakeFiles/riscv_emu.dir/src/main.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rvemu.dir/build.make CMakeFiles/rvemu.dir/src/main.cpp.i
 .PHONY : src/main.cpp.i
 
 src/main.s: src/main.cpp.s
@@ -174,7 +174,7 @@ src/main.s: src/main.cpp.s
 
 # target to generate assembly for a file
 src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/riscv_emu.dir/build.make CMakeFiles/riscv_emu.dir/src/main.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rvemu.dir/build.make CMakeFiles/rvemu.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
 # Help Target
@@ -185,7 +185,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... riscv_emu"
+	@echo "... rvemu"
 	@echo "... src/cpu.o"
 	@echo "... src/cpu.i"
 	@echo "... src/cpu.s"
