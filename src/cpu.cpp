@@ -1,10 +1,10 @@
 #include "cpu.h"
-
 #include <cstdint>
-
+#include <cstdio>
 #include <iomanip>
-
 #include <iostream>
+
+const uint32_t UART0_ADDR = 0x10000000;
 
 Cpu::Cpu(const std::vector<uint8_t> &code) : pc(0), memory(1024 * 1024, 0) {
   pc = 0;
@@ -30,6 +30,17 @@ uint32_t Cpu::fetch() {
          ((uint32_t)memory[pc + 2] << 16) | ((uint32_t)memory[pc + 3] << 24);
 }
 
+void Cpu::write_reg(uint32_t r, uint32_t val) {
+  if (r != 0)
+    regs[r] = val;
+}
+
+uint32_t Cpu::read_reg(uint32_t r) {
+  if (r == 0)
+    return 0;
+  return regs[r];
+}
+
 void Cpu::decode_execute(uint32_t inst) {
   uint32_t opcode = inst & 0x7F;
   uint32_t rd = (inst >> 7) & 0x1F;
@@ -44,16 +55,22 @@ void Cpu::decode_execute(uint32_t inst) {
                   ((inst >> 20) & 0x7E0) | ((inst >> 7) & 0x1E);
   int32_t imm_u = inst & 0xFFFFF000;
   int32_t imm_j = ((int32_t)(inst & 0x80000000) >> 11) | (inst & 0xFF000) |
-                  ((inst >> 9) & 0x800) | ((inst >> 20) & 0x7FE0);
+                  ((inst >> 9) & 0x800) | ((inst >> 20) & 0x7FE);
 
-  std::cout << "Fetched instruction: 0x" << std::hex << std::setw(8)
-            << std::setfill('0') << inst << "\n";
-  std::cout << "  opcode: 0x" << std::hex << (int)opcode << "\n";
-  std::cout << "  rd: x" << std::dec << (int)rd << "\n";
-  std::cout << "  funct3: 0x" << std::hex << (int)funct3 << "\n";
-  std::cout << "  rs1: x" << std::dec << (int)rs1 << "\n";
-  std::cout << "  rs2: x" << std::dec << (int)rs2 << "\n";
-  std::cout << "  funct7: 0x" << std::hex << (int)funct7 << "\n";
+  printf("Fetched instruction: 0x%08x\n"
+         "  opcode: 0x%x\n"
+         "  rd:     x%d\n"
+         "  funct3: 0x%x\n"
+         "  rs1:    x%d\n"
+         "  rs2:    x%d\n"
+         "  funct7: 0x%x\n"
+         "  imm_i:  0x%x\n"
+         "  imm_s:  0x%x\n"
+         "  imm_b:  0x%x\n"
+         "  imm_u:  0x%x\n"
+         "  imm_j:  0x%x\n",
+         inst, opcode, rd, funct3, rs1, rs2, funct7, imm_i, imm_s, imm_b, imm_u,
+         imm_j);
 
   switch (opcode) {
 
@@ -62,31 +79,66 @@ void Cpu::decode_execute(uint32_t inst) {
     switch (funct3) {
     case 0x0:
       if (funct7 == 0x00) {
-      /* ADD */ } else if (funct7 == 0x20) {
-      /* SUB */ }
+        // ADD (R-Type)
+        // rd = rs1 + rs2
+
+        write_reg(rd, read_reg(rs1) + read_reg(rs2));
+      } else if (funct7 == 0x20) {
+        // SUB (R-Type)
+        // rd = rs1 - rs2
+
+        write_reg(rd, read_reg(rs1) - read_reg(rs2));
+      }
       break;
     case 0x1:
-      /* SLL */
+      // Shift Left Logical (SLL) (R-Type)
+      // rd = rs1 << rs2
+
+      write_reg(rd,
+                read_reg(rs1) << (read_reg(rs2) & 0x1F)); // Limit shift to 0-31
       break;
     case 0x2:
-      /* SLT */
+      // Set Less Than (SLT) (R-Type)
+      // rd = (rs1 < rs2)?1:0
+
+      write_reg(rd, ((int32_t)read_reg(rs1) < (int32_t)read_reg(rs2)) ? 1 : 0);
       break;
     case 0x3:
-      /* SLTU */
+      // Set Less Than (U) (SLTU) (R-Type)
+      // rd = (rs1 < rs2)?1:0
+
+      write_reg(rd, (read_reg(rs1) < read_reg(rs2)) ? 1 : 0);
       break;
     case 0x4:
-      /* XOR */
+      // XOR (R-Type)
+      // rd = rs1 ˆ rs2
+
+      write_reg(rd, read_reg(rs1) ^ read_reg(rs2));
       break;
     case 0x5:
       if (funct7 == 0x00) {
-      /* SRL */ } else if (funct7 == 0x20) {
-      /* SRA */ }
+        // Shift Right Logical (SRL) (R-Type)
+        // rd = rs1 >> rs2
+
+        write_reg(rd, read_reg(rs1) >> (read_reg(rs2) & 0x1F));
+      } else if (funct7 == 0x20) {
+        // Shift Right Arith (SRA) (R-Type)
+        // rd = rs1 >> rs2
+
+        write_reg(rd, ((int32_t)read_reg(rs1)) >> (read_reg(rs2) & 0x1F));
+      }
       break;
     case 0x6:
-      /* OR */
+      // OR (R-Type)
+      // rd = rs1 | rs2
+
+      write_reg(rd, read_reg(rs1) | read_reg(rs2));
       break;
     case 0x7:
-      /* AND */
+      // AND (R-Type)
+      // rd = rs1 & rs2
+
+      write_reg(rd, read_reg(rs1) & read_reg(rs2));
       break;
     }
     break;
@@ -95,125 +147,227 @@ void Cpu::decode_execute(uint32_t inst) {
   case 0x13:
     switch (funct3) {
     case 0x0:
-      /* ADDI: rd = rs1 + imm_i */
+      // ADD Immediate (ADDI) (I-Type)
+      // rd = rs1 + imm
+
+      write_reg(rd, read_reg(rs1) + imm_i);
       break;
     case 0x1:
-      /* SLLI: rd = rs1 << shamt (check imm_i validity) */
+      // Shift Left Logical Imm (SLLI) (I-Type)
+      // rd = rs1 << imm[0:4]
+
+      write_reg(rd, read_reg(rs1) << (imm_i & 0x1F));
       break;
     case 0x2:
-      /* SLTI: rd = (rs1 < imm_i) ? 1 : 0 */
+      // Set Less Than Imm (SLTI) (I-Type)
+      // rd = (rs1 < imm)?1:0
+
+      write_reg(rd, (int32_t)read_reg(rs1) < imm_i);
       break;
     case 0x3:
-      /* SLTIU: rd = (unsigned(rs1) < unsigned(imm_i)) ? 1 : 0 */
+      // Set Less Than Imm (U) (SLTIU) (I-Type)
+      // rd = (rs1 < imm)?1:0
+
+      write_reg(rd, read_reg(rs1) < (uint32_t)imm_i);
       break;
     case 0x4:
-      /* XORI: rd = rs1 ^ imm_i */
+      // XOR Immediate (XORI) (I-Type)
+      // rd = rs1 ˆ imm
+
+      write_reg(rd, read_reg(rs1) ^ imm_i);
       break;
     case 0x5:
-      // Logic for SRLI vs SRAI depends on the top bits of the immediate
       if ((imm_i & 0x400) == 0) {
-      /* SRLI: Logical Right Shift */ } else {
-      /* SRAI: Arithmetic Right Shift */ }
+        // Shift Right Logical Imm (SRLI) (I-Type)
+        // rd = rs1 >> imm[0:4]
+
+        write_reg(rd, read_reg(rs1) >> (imm_i & 0x1F));
+      } else {
+        // Shift Right Arith Imm (SRAI) (I-Type)
+        // rd = rs1 >> imm[0:4]
+
+        write_reg(rd, ((int32_t)read_reg(rs1)) >> (imm_i & 0x1F));
+      }
       break;
     case 0x6:
-      /* ORI: rd = rs1 | imm_i */
+      // OR Immediate (ORI) (I-Type)
+      // rd = rs1 | imm
+
+      write_reg(rd, read_reg(rs1) | imm_i);
       break;
     case 0x7:
-      /* ANDI: rd = rs1 & imm_i */
+      // AND Immediate (ANDI) (I-Type)
+      // rd = rs1 & imm
+
+      write_reg(rd, read_reg(rs1) & imm_i);
       break;
     }
     break;
 
-    // LOAD (I TYPE)
+  // LOAD (I TYPE)
   case 0x03:
     switch (funct3) {
     case 0x0:
-      /* LB: Load Byte (Sign-extended) */
+      // Load Byte (LB) (I TYPE)
+      // rd = M[rs1+imm][0:7]
+
+      write_reg(rd, (int32_t)(int8_t)load8(read_reg(rs1) + imm_i));
       break;
+
     case 0x1:
-      /* LH: Load Halfword (Sign-extended) */
+      // Load Half (LH) (I TYPE)
+      // rd = M[rs1+imm][0:15]
+
+      write_reg(rd, (int32_t)(int16_t)load16(read_reg(rs1) + imm_i));
       break;
+
     case 0x2:
-      /* LW: Load Word */
+      // Load Word (LW) (I TYPE)
+      // rd = M[rs1+imm][0:31]
+
+      write_reg(rd, load32(read_reg(rs1) + imm_i));
       break;
+
     case 0x4:
-      /* LBU: Load Byte (Zero-extended) */
+      // Load Byte (U) (LBU) (I TYPE)
+      // rd = M[rs1+imm][0:7]
+
+      write_reg(rd, load8(read_reg(rs1) + imm_i));
       break;
+
     case 0x5:
-      /* LHU: Load Halfword (Zero-extended) */
+      // Load Half (U) (LHU) (I TYPE)
+      // rd = M[rs1+imm][0:15]
+
+      write_reg(rd, load16(read_reg(rs1) + imm_i));
       break;
     }
     break;
 
-    // S TYPE
+  // S TYPE
   case 0x23:
-    // Uses imm_s constructed above
     switch (funct3) {
     case 0x0:
-      /* SB: Store Byte */
+      // Store Byte (SB) (S TYPE)
+      // M[rs1+imm][0:7] = rs2[0:7]
+
+      store8(read_reg(rs1) + imm_s, read_reg(rs2));
       break;
+
     case 0x1:
-      /* SH: Store Halfword */
+      // Store Half (SH) (S TYPE)
+      // M[rs1+imm][0:15] = rs2[0:15]
+
+      store16(read_reg(rs1) + imm_s, read_reg(rs2));
       break;
+
     case 0x2:
-      /* SW: Store Word */
+      // Store Word (SW) (S TYPE)
+      // M[rs1+imm][0:31] = rs2[0:31]
+
+      store32(read_reg(rs1) + imm_s, read_reg(rs2));
       break;
     }
     break;
 
     // B TYPE
   case 0x63:
-    // Uses imm_b constructed above. Remember to add to PC!
     switch (funct3) {
     case 0x0:
-      /* BEQ: if (rs1 == rs2) ... */
+      // Branch == (BEQ) (B TYPE)
+      // if(rs1 == rs2) PC += imm
+
+      if (read_reg(rs1) == read_reg(rs2)) {
+        pc = pc + imm_b - 4; // I will add 4 later!
+      }
       break;
+
     case 0x1:
-      /* BNE: if (rs1 != rs2) ... */
+      // Branch != (BNE) (B TYPE)
+      // if(rs1 != rs2) PC += imm
+      if (read_reg(rs1) != read_reg(rs2)) {
+        pc += imm_b;
+      }
       break;
+
     case 0x4:
-      /* BLT: if (rs1 < rs2) ... (signed) */
+      // Branch < (BLT) (B TYPE)
+      // if(rs1 < rs2) PC += imm
+
+      if ((int32_t)read_reg(rs1) < (int32_t)read_reg(rs2)) {
+        pc += imm_b;
+      }
       break;
+
     case 0x5:
-      /* BGE: if (rs1 >= rs2) ... (signed) */
+      // Branch >= (BGE) (B TYPE)
+      // if(rs1 >= rs2) PC += imm
+
+      if ((int32_t)read_reg(rs1) >= (int32_t)read_reg(rs2)) {
+        pc += imm_b;
+      }
       break;
+
     case 0x6:
-      /* BLTU: if (rs1 < rs2) ... (unsigned) */
+      // Branch < (U) (BLTU) (B TYPE)
+      // if(rs1 < rs2) PC += imm
+
+      if (read_reg(rs1) < read_reg(rs2)) {
+        pc += imm_b;
+      }
       break;
+
     case 0x7:
-      /* BGEU: if (rs1 >= rs2) ... (unsigned) */
+      // Branch >= (U) (BGEU) (B TYPE)
+      // if(rs1 >= rs2) PC += imm
+
+      if (read_reg(rs1) >= read_reg(rs2)) {
+        pc += imm_b;
+      }
       break;
     }
     break;
 
-    // LUI (U-Type)
   case 0x37:
-    // LUI: Load Upper Immediate. rd = imm_u
+    // Load Upper Imm (LUI) (U Type)
+    // rd = imm << 12
+
+    write_reg(rd, imm_u);
     break;
 
-    // AUIPC (U-Type)
   case 0x17:
-    // AUIPC: Add Upper Immediate to PC. rd = pc + imm_u
+    // Add Upper Imm to PC (AUIPC) (U Type)
+    // rd = PC + (imm << 12)
+
+    write_reg(rd, pc + imm_u);
     break;
 
-    // JAL (J-Type)
   case 0x6F:
-    // JAL: Jump and Link. rd = pc + 4; pc += imm_j
+    // Jump And Link (JAL) (J Type)
+    // rd = PC + (imm << 12)
+
+    write_reg(rd, pc + 4);
+    pc += imm_j;
     break;
 
-    // JALR (I-Type)
+  // JALR (I-Type)
   case 0x67:
-    // JALR: Jump and Link Register.
-    // target = (rs1 + imm_i) & ~1
-    // rd = pc + 4; pc = target
+    // Jump And Link Reg (JALR) (J Type)
+    // rd = PC+4; PC = rs1 + imm
+
+    write_reg(rd, pc + 4);
+    pc = (read_reg(rs1) + imm_i) &
+         ~1; // Mask with ~1 (0xFFFFFFFE) to ensure 2-byte alignment
     break;
 
-    // SYSTEM (I-Type)
+  // SYSTEM (I-Type)
   case 0x73:
     // ECALL and EBREAK share funct3=0, distinguished by imm bits
     if (funct3 == 0x0) {
       if (imm_i == 0x0) {
-      /* ECALL */ } else if (imm_i == 0x1) { /* EBREAK */ } }
+      /* ECALL */ } else if (imm_i == 0x1) { /* EBREAK */
+      }
+    }
     break;
 
   default:
@@ -226,6 +380,8 @@ void Cpu::tick() {
   uint32_t inst = fetch();
 
   decode_execute(inst);
+
+  pc += 4;
 }
 
 uint32_t Cpu::load32(uint32_t addr) {
@@ -266,13 +422,16 @@ void Cpu::store16(uint32_t addr, uint16_t val) {
 }
 
 void Cpu::store8(uint32_t addr, uint8_t val) {
-  if (addr == 0x10000000) {
+  if (addr == UART0_ADDR) {
     std::cout << (char)val;
+    std::cout.flush();
     return;
   }
 
-  if (addr >= memory.size())
+  if (addr >= memory.size()) {
     return;
+  }
+
   memory[addr] = val;
 }
 

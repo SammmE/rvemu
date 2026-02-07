@@ -31,16 +31,24 @@ std::vector<uint8_t> load_binary(const std::string &filename) {
 }
 
 int main(int argc, char *argv[]) {
+  std::vector<uint8_t> program;
   if (argc < 2) {
-    std::cerr << "Usage: ./rvemu <binary_file>" << std::endl;
-    return 1;
+    program = {
+        0x93, 0x00, 0x50, 0x00, // 0x00500093 (addi x1, x0, 5)
+
+        0x13, 0x01, 0xa0, 0x00, // 0x00a00113 (addi x2, x0, 10)
+
+        0xb3, 0x81, 0x20, 0x00, // 0x002081b3 (add x3, x1, x2)
+
+        0x63, 0x00, 0x00, 0x00 // 0x00000063 (beq x0, x0, 0
+    };
+  } else {
+    program = load_binary(argv[1]);
   }
 
-  std::vector<uint8_t> code = load_binary(argv[1]);
+  Cpu cpu(program);
 
-  Cpu cpu(code);
-
-  int cycles = std::min(100, static_cast<int>(code.size()));
+  int cycles = std::min(100, static_cast<int>(program.size()));
 
   std::cout << cycles << " cycles" << std::endl;
 
